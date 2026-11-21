@@ -1,0 +1,5 @@
+#!/bin/sh
+# Before a commit: the light checks of the policy (seconds), so the work is saved at once. The tests
+# run on push and merge. A task's kind for the policy: PIPELINE_KIND=ui,data git commit ...
+root="$(git rev-parse --show-toplevel)"
+exec node "$root/scripts/pipeline/run.mjs" commit

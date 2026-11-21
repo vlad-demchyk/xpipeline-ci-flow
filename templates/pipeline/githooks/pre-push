@@ -1,0 +1,11 @@
+#!/bin/sh
+# Before a push: the zones the pushed commits reach, the policy's push, or push-main for a main
+# branch or a tag. Git gives each pushed ref on stdin as
+# `<local ref> <local sha> <remote ref> <remote sha>`; a deleted ref has nothing to check.
+root="$(git rev-parse --show-toplevel)"
+zero="0000000000000000000000000000000000000000"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  node "$root/scripts/pipeline/run.mjs" push --ref "$remote_ref" --remote-sha "$remote_sha" --source "$local_sha" </dev/null || exit 1
+done
+exit 0

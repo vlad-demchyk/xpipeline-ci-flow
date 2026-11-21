@@ -1,0 +1,8 @@
+#!/bin/sh
+# After a merge that made a merge commit: the zones it brought, the policy's merge. A fast-forward
+# made no commit of its own; its commits were checked where they were made. Git cannot undo a merge
+# from here: a red run says so, and the merge is fixed or reverted by hand.
+git rev-parse -q --verify HEAD^2 >/dev/null 2>&1 || exit 0
+root="$(git rev-parse --show-toplevel)"
+node "$root/scripts/pipeline/run.mjs" merge || echo "checks merge: red; fix the merge or revert it (git revert -m 1 HEAD)" >&2
+exit 0

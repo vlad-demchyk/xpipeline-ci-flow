@@ -1,0 +1,17 @@
+{
+  "name": "xpipeline-ci-flow",
+  "owner": {
+    "name": "Vlad Demchyk"
+  },
+  "metadata": {
+    "description": "XPipeline CI Flow: an optional plugin of the XBrain ecosystem that teaches agents a project's checks' policy (levels by action, kind and zone), tests that can fail, agreed skips, a heavy-run queue, local Linux CI and bench checks, for Claude Code and Codex."
+  },
+  "plugins": [
+    {
+      "name": "xpipeline-ci-flow",
+      "source": "./",
+      "description": "A project's checks by action, kind and zone: light on commit, the touched zones on push and merge, the whole suite once at the end of a session; tests proved red, skips with reasons, a heavy-run queue, Linux CI and an isolated bench.",
+      "version": "0.1.0"
+    }
+  ]
+}

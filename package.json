@@ -1,0 +1,10 @@
+{
+  "name": "xpipeline-ci-flow",
+  "private": true,
+  "description": "The plugin's own checks; the plugin and its template need no dependencies.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs templates/pipeline/*.test.mjs",
+    "check": "node scripts/check.mjs && node --test tests/*.test.mjs templates/pipeline/*.test.mjs"
+  }
+}

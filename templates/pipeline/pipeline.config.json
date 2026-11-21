@@ -1,0 +1,40 @@
+{
+  "$comment": "This project's checks' policy (xpipeline-ci-flow, skill pipeline-policy). An example for an npm workspace with a web app, an API and a shared package: replace the zones, their commands and the kinds with the project's own.",
+  "base": "origin/main",
+  "mainBranches": ["main"],
+  "shared": ["package.json", "package-lock.json", "tsconfig*.json", ".githooks/", "scripts/pipeline/", "pipeline.config.json"],
+  "docs": ["**/*.md", "docs/**", "LICENSE*"],
+  "zones": {
+    "shared": {
+      "paths": ["packages/shared/"],
+      "test": ["npx", "vitest", "related", "--run", "{files}"],
+      "suite": ["npx", "vitest", "run", "packages/shared"]
+    },
+    "web": {
+      "paths": ["apps/web/"],
+      "dependsOn": ["shared"],
+      "test": ["npx", "vitest", "related", "--run", "{files}"],
+      "suite": ["npx", "vitest", "run", "apps/web"]
+    },
+    "api": {
+      "paths": ["apps/api/"],
+      "dependsOn": ["shared"],
+      "test": ["npx", "vitest", "related", "--run", "{files}"],
+      "suite": ["npx", "vitest", "run", "apps/api"]
+    }
+  },
+  "light": [
+    { "step": "format", "command": ["npx", "prettier", "--check", "--ignore-unknown", "{files}"], "docs": true, "why": "the changed files are formatted" },
+    { "step": "typecheck", "command": "npm run typecheck --silent", "zones": ["shared", "web", "api"], "why": "the change reaches TypeScript" }
+  ],
+  "kinds": {
+    "ui": { "paths": ["apps/web/src/"], "auto": false, "raise": ["suite"], "zones": ["web"] },
+    "data": { "paths": ["apps/api/migrations/", "packages/shared/src/schema/"], "raise": ["gates"] },
+    "security": { "paths": ["apps/api/src/auth/"], "raise": ["suite", "gates"] }
+  },
+  "gates": [
+    { "step": "migrations", "command": "npm run test:migrations --silent", "why": "data written by the last release stays readable", "required": true }
+  ],
+  "related": ["npx", "vitest", "related", "--run", "{files}"],
+  "heavy": "scripts/pipeline/heavy.sh"
+}

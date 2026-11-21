@@ -1,0 +1,20 @@
+{
+  "name": "xpipeline-ci-flow",
+  "displayName": "XPipeline CI Flow",
+  "version": "0.1.0",
+  "description": "Checks that run where the change is: a project's policy of light, medium and heavy checks by action, kind and zone, where tests go and how they are proved (a failing test first, mutation, guard tests), what may be skipped and who agrees, a heavy-run queue for several agents on one machine, Linux CI on a Mac and live checks on an isolated bench. Skills, agents, hooks and a project template with no dependencies.",
+  "author": {
+    "name": "Vlad Demchyk"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ci",
+    "testing",
+    "checks",
+    "git-hooks",
+    "monorepo",
+    "test-zones",
+    "linux-ci",
+    "agents"
+  ]
+}

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# linux-ci - run a project's Linux CI locally, in a light Ubuntu VM (Lima).
+#
+#   linux-ci [DIR] [-- ARGS] sync DIR (default: .) into the VM, run its .linux-ci.sh ARGS
+#   linux-ci --shell [DIR]  open a shell in the synced copy inside the VM
+#   linux-ci --stop         stop the VM (it keeps its disk and caches)
+#   linux-ci --status       show the VM
+#   linux-ci --reset        delete and recreate the VM from scratch
+#
+# The project is copied, never mounted: the VM cannot change your files, and
+# a test that writes into the tree writes into the copy. The VM persists, so
+# apt packages, Python builds and pip caches are paid for once.
+set -euo pipefail
+
+VM="${LINUX_CI_VM:-linux-ci}"
+IMAGE="${LINUX_CI_IMAGE:-ubuntu-24.04}"   # what GitHub's ubuntu-latest runs now
+BASE_VERSION=1
+SSH_CONFIG="$HOME/.lima/$VM/ssh.config"
+
+say() { printf '\033[1m[linux-ci]\033[0m %s\n' "$*" >&2; }
+
+need_lima() {
+  command -v limactl >/dev/null || { say "Lima is missing: brew install lima"; exit 2; }
+}
+
+vm_status() { limactl list --format '{{.Status}}' "$VM" 2>/dev/null || true; }
+
+ensure_vm() {
+  need_lima
+  local status; status="$(vm_status)"
+  if [ -z "$status" ]; then
+    say "creating VM $VM ($IMAGE, 4 CPU, 6 GiB, plain: no mounts, no containers)"
+    limactl create --name="$VM" --vm-type=vz --cpus=4 --memory=6 --disk=40 \
+      --plain --tty=false "template:$IMAGE" >/dev/null
+    status=Stopped
+  fi
+  if [ "$status" != "Running" ]; then
+    say "starting VM $VM"
+    limactl start --tty=false "$VM" >/dev/null
+  fi
+  ensure_base
+}
+
+vm() { limactl shell "$VM" -- "$@"; }
+
+ensure_base() {
+  if vm test -f "/var/lib/linux-ci/base-v$BASE_VERSION" 2>/dev/null; then return; fi
+  say "provisioning the VM once (apt basics, xvfb, uv)"
+  vm sudo bash -c '
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq --no-install-recommends \
+      rsync git curl ca-certificates build-essential xvfb xauth \
+      fonts-dejavu-core locales >/dev/null
+    mkdir -p /var/lib/linux-ci'
+  vm bash -c 'command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null'
+  vm sudo touch "/var/lib/linux-ci/base-v$BASE_VERSION"
+}
+
+sync_project() {
+  local dir="$1" name="$2"
+  say "syncing $(basename "$dir") into the VM"
+  vm mkdir -p "work/$name"
+  rsync -a --delete \
+    --exclude '.venv/' --exclude 'venv/' --exclude 'venv-*/' \
+    --exclude 'node_modules/' --exclude 'dist/' --exclude 'build/' \
+    --exclude '__pycache__/' --exclude '.pytest_cache/' --exclude '.ruff_cache/' \
+    --exclude '.brain/local.json' --exclude '.DS_Store' \
+    -e "ssh -F $SSH_CONFIG" "$dir/" "lima-$VM:work/$name/"
+}
+
+main() {
+  case "${1:-}" in
+    --stop) need_lima; limactl stop "$VM"; exit ;;
+    --status) need_lima; limactl list "$VM"; exit ;;
+    --reset) need_lima; limactl delete -f "$VM" || true; ensure_vm; say "fresh VM ready"; exit ;;
+  esac
+  local shell=0
+  if [ "${1:-}" = "--shell" ]; then shell=1; shift; fi
+  local target="."
+  if [ $# -gt 0 ] && [ "$1" != "--" ]; then target="$1"; shift; fi
+  if [ "${1:-}" = "--" ]; then shift; fi
+  local args=""
+  if [ $# -gt 0 ]; then args="$(printf ' %q' "$@")"; fi
+  local dir; dir="$(cd "$target" && pwd)"
+  local name; name="$(basename "$dir")"
+  if [ "$shell" = 0 ] && [ ! -f "$dir/.linux-ci.sh" ]; then
+    say "$dir has no .linux-ci.sh: write the steps of its CI test job there"
+    exit 2
+  fi
+  ensure_vm
+  sync_project "$dir" "$name"
+  if [ "$shell" = 1 ]; then
+    limactl shell "$VM" bash -lc "cd ~/work/$name && exec bash -l"
+    exit
+  fi
+  say "running .linux-ci.sh in Ubuntu ($IMAGE, $(vm uname -m))"
+  local started=$SECONDS
+  set +e
+  vm bash -lc "cd ~/work/$name && export PATH=\$HOME/.local/bin:\$PATH CI=true LINUX_CI=1 && bash .linux-ci.sh$args"
+  local code=$?
+  set -e
+  if [ $code = 0 ]; then say "passed in $((SECONDS-started)) s"; else say "FAILED (exit $code) after $((SECONDS-started)) s"; fi
+  exit $code
+}
+
+main "$@"
