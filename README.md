@@ -50,6 +50,9 @@ whether each test can fail, sits in the right zone and is reached by the policy.
   in a project with a policy, a heavy command started past the queue gets a reminder. Nothing is
   blocked.
 
+Claude Code runs them once the plugin is installed. Codex runs a plugin's hooks only after the person
+trusts them in its terminal (and again after each plugin update); the skills work without them.
+
 ## The project template
 
 `templates/pipeline/`, installed by `node scripts/init.mjs <project>`:
