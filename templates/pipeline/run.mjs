@@ -67,10 +67,13 @@ export function changeOf({ action, since, push, base }, git) {
   }
   if (!from && action === "release") return { files: lines(git(["ls-files"])), from: "the whole tree (no base to diff from)" };
   if (!from) return { error: `no base to diff from (${base} is not here): pass --since <ref>` };
-  // A push and a merge compare commits; by hand, the working tree is compared with the base.
-  const diff = git(["diff", "--name-only", from.ref, ...(push?.source || action === "merge" ? [head] : [])]);
+  // A push and a merge compare commits; by hand, the working tree is compared with the base, and
+  // the files git does not track yet are part of it (a new module is a change too).
+  const commits = Boolean(push?.source) || action === "merge";
+  const diff = git(["diff", "--name-only", from.ref, ...(commits ? [head] : [])]);
   if (diff === null) return { error: `git cannot diff from ${from.ref}` };
-  return { files: lines(diff), from: `${from.ref} (${from.why})` };
+  const fresh = commits ? [] : lines(git(["ls-files", "--others", "--exclude-standard"]));
+  return { files: [...new Set([...lines(diff), ...fresh])], from: `${from.ref} (${from.why})` };
 }
 
 /**
@@ -145,11 +148,12 @@ function main() {
   let changed;
   let from;
   if ("error" in change) {
-    // Never a silent pass and never the whole suite by default: the light checks, and why.
+    // Never a silent pass and never the whole suite by default: the light checks of the action on
+    // the files at hand (the pushed commit's, else the working tree's), and why.
     console.warn(`checks ${action}: ${change.error}; the zones cannot be told, so only the light checks run and the zones wait for session-end`);
-    action = "commit";
-    changed = lines(git(["diff", "--name-only", "HEAD"]));
-    from = "the working tree";
+    config.actions[action] = { level: "light", gates: false, why: "no base to tell the zones from: they wait for session-end" };
+    changed = push?.source ? lines(git(["show", "--name-only", "--format=", push.source])) : lines(git(["diff", "--name-only", "HEAD"]));
+    from = push?.source ? `the pushed commit ${push.source.slice(0, 12)}` : "the working tree";
   } else {
     changed = change.files;
     from = change.from;

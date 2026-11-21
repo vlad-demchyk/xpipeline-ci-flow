@@ -197,7 +197,7 @@ function main() {
   for (const file of result.wrote) console.log(`${verb} ${file}`);
   for (const file of result.kept) console.log(`kept   ${file} (already there)`);
   for (const note of result.notes) console.log(`note   ${note}`);
-  console.log(`\nnext: check the zones in ${relative(process.cwd(), join(dir, "pipeline.config.json")) || "pipeline.config.json"}, then \`node scripts/pipeline/run.mjs push --dry-run\` and \`node --test scripts/pipeline/\``);
+  console.log(`\nnext: check the zones in ${relative(process.cwd(), join(dir, "pipeline.config.json")) || "pipeline.config.json"}, then \`node scripts/pipeline/run.mjs push --dry-run\` and \`node --test scripts/pipeline/*.test.mjs\``);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

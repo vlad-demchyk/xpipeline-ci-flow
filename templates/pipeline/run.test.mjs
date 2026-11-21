@@ -44,3 +44,10 @@ test("the command line: kinds, skips with a reason, unknown flags", () => {
   assert.equal(args.dryRun, true);
   assert.equal(args.unknown.length, 2, "a skip without a reason and an unknown flag are both told");
 });
+
+test("by hand the working tree counts, the files git does not track yet among them", () => {
+  const git = fakeGit({ "diff --name-only base": "a.ts", "ls-files --others --exclude-standard": "new.ts\na.ts" });
+  assert.deepEqual(changeOf({ action: "push", since: "base", base: "origin/main" }, git).files, ["a.ts", "new.ts"]);
+  const pushed = fakeGit({ "cat-file -e abc^{commit}": "", "diff --name-only abc def": "x.ts", "ls-files --others --exclude-standard": "stray.ts" });
+  assert.deepEqual(changeOf({ action: "push", push: { ref: "refs/heads/f", remoteSha: "abc", source: "def" }, base: "origin/main" }, pushed).files, ["x.ts"], "a push is its commits, not the tree");
+});
